@@ -222,7 +222,6 @@ void get_broadcasts()
     socklen_t sender_len = sizeof(sender);
     u_int8_t buffer[IP_MAXPACKET];
     struct message m;
-    long dist_netorder;
 
     while (1)
     {
@@ -231,10 +230,9 @@ void get_broadcasts()
             break;
 
         m.sender = sender;
-        m.ip = ((in_addr_t)buffer[0] << 24) | ((in_addr_t)buffer[1] << 16) | ((in_addr_t)buffer[2] << 8) | (buffer[3]);
+        m.ip = htonl(((in_addr_t)buffer[0] << 24) | ((in_addr_t)buffer[1] << 16) | ((in_addr_t)buffer[2] << 8) | (buffer[3]));
         m.netmask = buffer[4];
-        dist_netorder = ((in_addr_t)buffer[5] << 24) | ((in_addr_t)buffer[6] << 16) | ((in_addr_t)buffer[7] << 8) | (buffer[8]);
-        m.distance = (long long)ntohl(dist_netorder);
+        m.distance = (long long)(((in_addr_t)buffer[5] << 24) | ((in_addr_t)buffer[6] << 16) | ((in_addr_t)buffer[7] << 8) | (buffer[8]));
         broadcasts.push_back(m);
     }
 }
@@ -405,10 +403,11 @@ void analyze_broadcasts()
 
 void construct_packet_data(char *packet, struct entry e)
 {
-    packet[0] = e.ip >> 24;
-    packet[1] = (e.ip & 0x00ff0000) >> 16;
-    packet[2] = (e.ip & 0x0000ff00) >> 8;
-    packet[3] = e.ip & 0x000000ff;
+    in_addr_t ipcorrected = ntohl(e.ip);
+    packet[0] = ipcorrected >> 24;
+    packet[1] = (ipcorrected & 0x00ff0000) >> 16;
+    packet[2] = (ipcorrected & 0x0000ff00) >> 8;
+    packet[3] = ipcorrected & 0x000000ff;
     packet[4] = e.netmask & 0xff;
     if (e.distance >= UNREACHABLE_DISTANCE)
     {
@@ -419,11 +418,11 @@ void construct_packet_data(char *packet, struct entry e)
     }
     else
     {
-        long dist_netorder = htonl((long)(e.distance & 0xffffffff));
-        packet[5] = dist_netorder >> 24;
-        packet[6] = (dist_netorder & 0x00ff0000) >> 16;
-        packet[7] = (dist_netorder & 0x0000ff00) >> 8;
-        packet[8] = dist_netorder & 0x000000ff;
+        long dist = (long)(e.distance & 0xffffffff);
+        packet[5] = dist >> 24;
+        packet[6] = (dist & 0x00ff0000) >> 16;
+        packet[7] = (dist & 0x0000ff00) >> 8;
+        packet[8] = dist & 0x000000ff;
     }
 }
 
